@@ -3,7 +3,7 @@ package com.batch.csvtomysql.config;
 import javax.annotation.processing.Processor;
 import javax.sql.DataSource;
 
-
+import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
@@ -55,11 +55,12 @@ public class BatchConfig {
 		
 		DelimitedLineTokenizer linetokenizer=new DelimitedLineTokenizer();
 		linetokenizer.setNames(new String[] {"first_name","last_name","country"});
-		
+		linetokenizer.setIncludedFields(new int[] {0,1,5});
 		BeanWrapperFieldSetMapper<User> fieldSetter=new BeanWrapperFieldSetMapper<User>();
+		fieldSetter.setTargetType(User.class);
 		lineMapper.setLineTokenizer(linetokenizer);
 		lineMapper.setFieldSetMapper(fieldSetter);
-		return null;
+		return lineMapper;
 	}
 
 	
@@ -74,7 +75,7 @@ public class BatchConfig {
 	 public JdbcBatchItemWriter<User> writer(){
 		 JdbcBatchItemWriter<User> writer=new JdbcBatchItemWriter<User>();
 		 writer.setItemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<User>());
-         writer.setSql("insert into user(firstname,lastname,country) values(:firstName,:lastName,:country)");
+         writer.setSql("insert into csv(firstname,lastname,country) values(:firstName,:lastName,:country)");
 	     writer.setDataSource(this.dataSource);
          
         /* (`userid`, 
@@ -87,17 +88,18 @@ public class BatchConfig {
 	 }
 	 
 	 
-	 
-	 public org.springframework.boot.autoconfigure.batch.BatchProperties.Job userJob() {
-		 return (org.springframework.boot.autoconfigure.batch.BatchProperties.Job) this.builderFactory.get("USER-IMPORT-JOB")
+	 @Bean
+	 public Job userJob() {
+		 return (Job) this.builderFactory.get("USER-IMPORT-JOB")
 				 .incrementer(new RunIdIncrementer())
 				 .flow(step1())
 				 .end()
 				 .build();
 	 }
 
-
-	private Step step1() {
+    
+	 @Bean
+	public Step step1() {
 		// TODO Auto-generated method stub
 		return this.stepBuilderFactory.get("step1")
 				.<User,User>chunk(10)
